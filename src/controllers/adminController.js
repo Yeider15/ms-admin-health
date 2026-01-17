@@ -9,12 +9,19 @@ const getStats = async (req, res) => {
       .where('last_seen', '>=', db.raw("NOW() - INTERVAL '30 days'"))
       .count('id as count')
       .first();
-    const roles = await db('profiles').select('role').count('id as count').groupBy('role');
+
+    const rolesRaw = await db('profiles')
+      .select(db.raw('LOWER(role) as role'))
+      .count('id as count')
+      .groupByRaw('LOWER(role)');
 
     res.json({
       total: parseInt(total.count),
       active: active ? parseInt(active.count) : 0,
-      roles
+      roles: rolesRaw.map(r => ({
+        role: r.role,
+        count: parseInt(r.count)
+      }))
     });
   } catch (error) {
     console.error("Error getStats:", error);
@@ -27,7 +34,13 @@ const getUsers = async (req, res) => {
     const users = await db('profiles')
       .select('id', 'rut', 'first_names', 'last_names', 'email', 'role', 'status', 'delete_requested_at')
       .orderBy('created_at', 'desc');
-    res.json(users);
+
+    const normalizedUsers = users.map(u => ({
+      ...u,
+      role: u.role ? u.role.toLowerCase() : 'user'
+    }));
+
+    res.json(normalizedUsers);
   } catch (error) {
     console.error("Error getUsers:", error);
     res.status(500).json({ error: 'Error al listar usuarios' });
@@ -37,11 +50,14 @@ const getUsers = async (req, res) => {
 const sendResetLink = async (req, res) => {
   const { email } = req.body;
   try {
-    const user = await db('profiles').where({ email }).first();
+    const user = await db('profiles')
+      .whereRaw('LOWER(email) = ?', [email.toLowerCase()])
+      .first();
+
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado en BD' });
 
     const fullName = `${user.first_names} ${user.last_names}`;
-    await sendResetEmail(email, fullName);
+    await sendResetEmail(user.email, fullName);
     res.json({ message: 'Correo enviado correctamente' });
   } catch (error) {
     console.error("Error sendResetLink:", error);
@@ -55,7 +71,7 @@ const updatePasswordAuth = async (req, res) => {
     const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     if (listError) throw listError;
 
-    const userAuth = users.find(u => u.email === email);
+    const userAuth = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (!userAuth) return res.status(404).json({ error: 'Usuario no encontrado en Auth' });
 
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
