@@ -9,6 +9,8 @@ const initTransporter = () => {
       throw new Error("ERROR: EMAIL_USER o EMAIL_PASS no están definidas");
     }
 
+    console.log("Inicializando transporter con:", process.env.EMAIL_USER);
+
     transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
@@ -19,9 +21,21 @@ const initTransporter = () => {
       },
       tls: {
         rejectUnauthorized: false,
+        minVersion: "TLSv1.2",
       },
-      connectionTimeout: 10000,
-      socketTimeout: 10000,
+      connectionTimeout: 30000,
+      socketTimeout: 30000,
+      greetingTimeout: 30000,
+      logger: true,
+      debug: true,
+    });
+
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error("Transporter verification failed:", error);
+      } else {
+        console.log("Transporter verificado correctamente");
+      }
     });
   }
   return transporter;
