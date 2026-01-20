@@ -1,7 +1,17 @@
 const { Resend } = require("resend");
 require("dotenv").config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend = null;
+
+const initResend = () => {
+  if (!resend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("ERROR: RESEND_API_KEY no está definida");
+    }
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+};
 
 const sendResetEmail = async (toEmail, name) => {
   if (!process.env.RESEND_API_KEY) {
@@ -17,8 +27,10 @@ const sendResetEmail = async (toEmail, name) => {
   console.log("Link:", resetLink);
 
   try {
-    const response = await resend.emails.send({
-      from: "noreply@resend.dev",
+    console.log("Enviando email con Resend a:", toEmail);
+    const resendClient = initResend();
+    const response = await resendClient.emails.send({
+      from: "onboarding@resend.dev",
       to: toEmail,
       subject: "Restablecer Contraseña - Salud al Día",
       html: `
@@ -35,8 +47,8 @@ const sendResetEmail = async (toEmail, name) => {
       `,
     });
 
-    console.log("Email enviado exitosamente. ID:", response.id);
-    return { success: true, messageId: response.id };
+    console.log("Email enviado exitosamente. Response:", response);
+    return { success: true, messageId: response.id || "sin_id" };
   } catch (error) {
     console.error("Error al enviar email:", error.message);
     throw new Error(`Fallo al enviar email: ${error.message}`);
