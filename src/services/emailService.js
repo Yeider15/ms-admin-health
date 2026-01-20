@@ -19,13 +19,13 @@ const sendResetEmail = async (toEmail, name) => {
   const emailData = {
     sender: {
       name: "Soporte Salud al Día",
-      email: "noreply@saludaldia.com"
+      email: "noreply@saludaldia.com",
     },
     to: [
       {
         email: toEmail,
-        name: name
-      }
+        name: name,
+      },
     ],
     subject: "Restablecer Contraseña - Salud al Día",
     htmlContent: `
@@ -39,25 +39,30 @@ const sendResetEmail = async (toEmail, name) => {
         <br><br>
         <p style="font-size: 12px; color: #777;">Si no solicitaste esto, ignora este mensaje.</p>
       </div>
-    `
+    `,
   };
 
   try {
     console.log("Iniciando envío de email vía API Brevo...");
     const response = await axios.post(BREVO_API_URL, emailData, {
       headers: {
-        "accept": "application/json",
+        accept: "application/json",
         "api-key": process.env.BREVO_API_KEY,
-        "content-type": "application/json"
+        "content-type": "application/json",
       },
-      timeout: 10000
+      timeout: 10000,
     });
 
     console.log("Email enviado exitosamente. ID:", response.data.messageId);
     return { success: true, messageId: response.data.messageId };
   } catch (error) {
-    console.error("Error al enviar email:", error.response?.data || error.message);
-    throw new Error(`Fallo al enviar email: ${error.response?.data?.message || error.message}`);
+    console.error(
+      "Error al enviar email:",
+      error.response?.data || error.message,
+    );
+    throw new Error(
+      `Fallo al enviar email: ${error.response?.data?.message || error.message}`,
+    );
   }
 };
 
