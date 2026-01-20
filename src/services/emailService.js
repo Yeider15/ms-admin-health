@@ -1,5 +1,18 @@
 const nodemailer = require("nodemailer");
+const dns = require("dns"); // IMPORTANTE: Librería nativa para el fix de red
 require("dotenv").config();
+
+// --- FIX CRÍTICO PARA RAILWAY ---
+// Forzamos a Node.js a usar IPv4 primero.
+// Esto soluciona el bloqueo/timeout al conectar con Gmail desde la nube.
+try {
+  if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder("ipv4first");
+  }
+} catch (error) {
+  console.log("Aviso: dns.setDefaultResultOrder no soportado (Node < 17)");
+}
+// --------------------------------
 
 let transporter = null;
 
@@ -11,30 +24,27 @@ const initTransporter = () => {
 
     console.log("Inicializando transporter con:", process.env.EMAIL_USER);
 
+    // Usamos el preset 'service: gmail' que configura puertos y host automáticamente.
+    // Es más robusto que configurar el puerto 587 manualmente.
     transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      service: "gmail", 
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
       tls: {
-        rejectUnauthorized: false,
-        minVersion: "TLSv1.2",
+        rejectUnauthorized: false, // Evita errores de certificados en Railway
       },
-      connectionTimeout: 30000,
-      socketTimeout: 30000,
-      greetingTimeout: 30000,
-      logger: true,
-      debug: true,
+      // Tiempos de espera aumentados para evitar cortes prematuros
+      connectionTimeout: 10000, 
+      greetingTimeout: 10000 
     });
 
     transporter.verify((error, success) => {
       if (error) {
-        console.error("Transporter verification failed:", error);
+        console.error("❌ Error verificando conexión SMTP:", error);
       } else {
-        console.log("Transporter verificado correctamente");
+        console.log("✅ Transporter verificado correctamente (Modo IPv4)");
       }
     });
   }
@@ -47,9 +57,10 @@ const sendResetEmail = async (toEmail, name) => {
   }
 
   const resetLink = `${process.env.FRONTEND_URL}/reset-password?email=${toEmail}`;
-  console.log("Reset link:", resetLink);
+  
+  console.log("--- Intento de envío ---");
   console.log("Destinatario:", toEmail);
-  console.log("Nombre:", name);
+  console.log("Link:", resetLink);
 
   const mailOptions = {
     from: `"Soporte Salud al Día" <${process.env.EMAIL_USER}>`,
@@ -73,10 +84,11 @@ const sendResetEmail = async (toEmail, name) => {
     console.log("Iniciando envío de email...");
     const mailTransporter = initTransporter();
     const info = await mailTransporter.sendMail(mailOptions);
-    console.log("Email enviado exitosamente. ID:", info.messageId);
+    console.log("✅ Email enviado exitosamente. ID:", info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error("Error al enviar email:", error.message);
+    console.error("🔥 Error al enviar email:", error);
+    // Lanzamos el error para que Postman muestre el fallo real
     throw new Error(`Fallo al enviar email: ${error.message}`);
   }
 };
