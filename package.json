@@ -19,14 +19,14 @@
   },
   "homepage": "https://github.com/Yeider15/ms-admin-health#readme",
   "dependencies": {
+    "@emailjs/nodejs": "^5.0.2",
     "@supabase/supabase-js": "^2.90.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "knex": "^3.1.0",
     "morgan": "^1.10.1",
-    "pg": "^8.17.1",
-    "resend": "^6.8.0"
+    "pg": "^8.17.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
