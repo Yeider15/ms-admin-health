@@ -13,7 +13,7 @@ const requiredEnvVars = [
   "DB_USER",
   "DB_PASS",
   "DB_NAME",
-  "BREVO_API_KEY",
+  "RESEND_API_KEY",
 ];
 const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 
