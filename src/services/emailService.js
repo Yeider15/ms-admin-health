@@ -1,50 +1,36 @@
 const nodemailer = require("nodemailer");
-const dns = require("dns"); // IMPORTANTE: Librería nativa para el fix de red
 require("dotenv").config();
-
-// --- FIX CRÍTICO PARA RAILWAY ---
-// Forzamos a Node.js a usar IPv4 primero.
-// Esto soluciona el bloqueo/timeout al conectar con Gmail desde la nube.
-try {
-  if (dns.setDefaultResultOrder) {
-    dns.setDefaultResultOrder("ipv4first");
-  }
-} catch (error) {
-  console.log("Aviso: dns.setDefaultResultOrder no soportado (Node < 17)");
-}
-// --------------------------------
 
 let transporter = null;
 
 const initTransporter = () => {
   if (!transporter) {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      throw new Error("ERROR: EMAIL_USER o EMAIL_PASS no están definidas");
+      throw new Error("ERROR: EMAIL_USER o EMAIL_PASS no están definidas en el entorno");
     }
 
-    console.log("Inicializando transporter con:", process.env.EMAIL_USER);
+    console.log("Inicializando transporter con Brevo:", process.env.EMAIL_USER);
 
-    // Usamos el preset 'service: gmail' que configura puertos y host automáticamente.
-    // Es más robusto que configurar el puerto 587 manualmente.
     transporter = nodemailer.createTransport({
-      service: "gmail", 
+      host: "smtp-relay.brevo.com",
+      port: 587,
+      secure: false, // true para 465, false para otros puertos
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.EMAIL_USER, // Aquí usa el a06de7001...
+        pass: process.env.EMAIL_PASS, // Aquí usa la clave xsmtpsib...
       },
       tls: {
-        rejectUnauthorized: false, // Evita errores de certificados en Railway
+        rejectUnauthorized: false, // Ayuda a conectar desde contenedores como Railway
       },
-      // Tiempos de espera aumentados para evitar cortes prematuros
-      connectionTimeout: 10000, 
-      greetingTimeout: 10000 
+      connectionTimeout: 10000,
+      socketTimeout: 10000,
     });
 
     transporter.verify((error, success) => {
       if (error) {
-        console.error("❌ Error verificando conexión SMTP:", error);
+        console.error("❌ Error verificando conexión SMTP con Brevo:", error);
       } else {
-        console.log("✅ Transporter verificado correctamente (Modo IPv4)");
+        console.log("✅ Transporter de Brevo verificado y listo");
       }
     });
   }
@@ -58,12 +44,13 @@ const sendResetEmail = async (toEmail, name) => {
 
   const resetLink = `${process.env.FRONTEND_URL}/reset-password?email=${toEmail}`;
   
-  console.log("--- Intento de envío ---");
+  console.log("--- Preparando envío de correo ---");
   console.log("Destinatario:", toEmail);
-  console.log("Link:", resetLink);
+  console.log("Link generado:", resetLink);
 
   const mailOptions = {
-    from: `"Soporte Salud al Día" <${process.env.EMAIL_USER}>`,
+    // Usamos tu correo real como remitente para que se vea profesional
+    from: `"Soporte Salud al Día" <xpertpro360@gmail.com>`, 
     to: toEmail,
     subject: "Restablecer Contraseña - Salud al Día",
     html: `
@@ -71,25 +58,24 @@ const sendResetEmail = async (toEmail, name) => {
         <h2 style="color: #2563eb;">Hola, ${name}</h2>
         <p style="font-size: 16px;">Para crear tu nueva contraseña, haz clic en el botón:</p>
         <br>
-        <a href="${resetLink}" style="background-color: #2563eb; color: white; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
+        <a href="${resetLink}" style="background-color: #2563eb; color: white; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">
           Cambiar Contraseña
         </a>
         <br><br>
-        <p style="font-size: 12px; color: #777;">Si no solicitaste esto, ignora este mensaje.</p>
+        <p style="font-size: 12px; color: #777; margin-top: 20px;">Si no solicitaste este cambio, puedes ignorar este mensaje de forma segura.</p>
       </div>
     `,
   };
 
   try {
-    console.log("Iniciando envío de email...");
+    console.log("Iniciando proceso de envío...");
     const mailTransporter = initTransporter();
     const info = await mailTransporter.sendMail(mailOptions);
-    console.log("✅ Email enviado exitosamente. ID:", info.messageId);
+    console.log("✅ Email enviado exitosamente a Brevo. ID:", info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error("🔥 Error al enviar email:", error);
-    // Lanzamos el error para que Postman muestre el fallo real
-    throw new Error(`Fallo al enviar email: ${error.message}`);
+    console.error("🔥 Error real al enviar email:", error.message);
+    throw new Error(`Fallo en el servicio de correo: ${error.message}`);
   }
 };
 
