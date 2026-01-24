@@ -149,6 +149,18 @@ const createSpecialist = async (req, res) => {
   const { email, password, first_names, last_names, rut } = req.body;
 
   try {
+    const existingRut = await db('profiles').where({ rut }).first();
+    if (existingRut) {
+      return res.status(400).json({ error: 'Este RUT ya está registrado en el sistema.' });
+    }
+
+    const existingEmail = await db('profiles')
+      .whereRaw('LOWER(email) = ?', [email.toLowerCase()])
+      .first();
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Este correo ya está registrado por otro usuario.' });
+    }
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
@@ -158,11 +170,16 @@ const createSpecialist = async (req, res) => {
         last_names, 
         rut, 
         role: 'specialist',
-        status: 'active' // <--- IMPORTANTE: Agregado para que el Trigger lo reciba
+        status: 'active'
       }
     });
 
-    if (authError) throw authError;
+    if (authError) {
+       if (authError.message.includes("already has been registered")) {
+          throw new Error("El correo ya está registrado en el sistema de autenticación.");
+       }
+       throw authError;
+    }
 
     const userId = authData.user.id;
 
@@ -183,7 +200,7 @@ const createSpecialist = async (req, res) => {
 
   } catch (error) {
     console.error("Error creando especialista:", error);
-    res.status(500).json({ error: error.message || 'Error al crear especialista' });
+    res.status(400).json({ error: error.message || 'Error al crear especialista' });
   }
 };
 
