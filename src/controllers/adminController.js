@@ -160,15 +160,18 @@ const createSpecialist = async (req, res) => {
 
     const userId = authData.user.id;
 
-    await db('profiles').insert({
-      id: userId,
-      email,
-      rut,
-      first_names,
-      last_names,
-      role: 'specialist',
-      status: 'active'
-    }).onConflict('id').merge();
+    await db('profiles')
+      .insert({
+        id: userId,
+        email,
+        rut,
+        first_names,
+        last_names,
+        role: 'specialist',
+        status: 'active'
+      })
+      .onConflict('id')
+      .merge();
 
     res.status(201).json({ message: 'Especialista creado exitosamente', id: userId });
 
