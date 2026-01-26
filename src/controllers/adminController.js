@@ -147,6 +147,7 @@ const requestAccountDeletion = async (req, res) => {
 
 const createSpecialist = async (req, res) => {
   const { email, password, first_names, last_names, rut } = req.body;
+  let authUser = null;
 
   try {
     const existingRut = await db('profiles').where({ rut }).first();
@@ -176,11 +177,12 @@ const createSpecialist = async (req, res) => {
 
     if (authError) {
        if (authError.message.includes("already been registered") || authError.message.includes("already has been registered")) {
-          throw new Error("El correo ya está registrado en el sistema de autenticación.");
+         throw new Error("El correo ya está registrado en el sistema de autenticación.");
        }
        throw authError;
     }
 
+    authUser = authData.user;
     const userId = authData.user.id;
 
     await db('profiles')
@@ -199,6 +201,9 @@ const createSpecialist = async (req, res) => {
     res.status(201).json({ message: 'Especialista creado exitosamente', id: userId });
 
   } catch (error) {
+    if (authUser && error.code !== 'auth_error') {
+        await supabaseAdmin.auth.admin.deleteUser(authUser.id).catch(() => {});
+    }
     res.status(400).json({ error: error.message || 'Error al crear especialista' });
   }
 };
