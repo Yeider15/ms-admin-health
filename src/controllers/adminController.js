@@ -213,7 +213,7 @@ module.exports = {
   getUsers, 
   sendResetLink, 
   updatePasswordAuth, 
-  deleteUser,
+  deleteUser, 
   verifyAdmin,
   requestAccountDeletion,
   createSpecialist
